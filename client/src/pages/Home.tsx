@@ -1,7 +1,8 @@
 import { use2048 } from '@/hooks/use2048';
 import { Button } from '@/components/ui/button';
-import { RotateCcw } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { RotateCcw, Play, Pause } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { getBestMove } from '@/lib/ai2048';
 
 /**
  * 2048 游戏主页面
@@ -14,6 +15,8 @@ import { useEffect, useRef } from 'react';
 export default function Home() {
   const gameState = use2048();
   const gameContainerRef = useRef<HTMLDivElement>(null);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const autoPlayIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 获取数字对应的颜色
   const getTileColor = (value: number): string => {
@@ -56,6 +59,32 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // AI 自动化游戏
+  useEffect(() => {
+    if (!isAutoPlaying || gameState.isGameOver) {
+      setIsAutoPlaying(false);
+      if (autoPlayIntervalRef.current) {
+        clearInterval(autoPlayIntervalRef.current);
+        autoPlayIntervalRef.current = null;
+      }
+      return;
+    }
+
+    autoPlayIntervalRef.current = setInterval(() => {
+      const bestMove = getBestMove(gameState.tiles);
+      if (bestMove) {
+        gameState.move(bestMove);
+      }
+    }, 150);
+
+    return () => {
+      if (autoPlayIntervalRef.current) {
+        clearInterval(autoPlayIntervalRef.current);
+        autoPlayIntervalRef.current = null;
+      }
+    };
+  }, [isAutoPlaying, gameState]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
@@ -141,6 +170,33 @@ export default function Home() {
           >
             <RotateCcw size={18} />
             新游戏
+          </Button>
+          <Button
+            onClick={() => {
+              if (gameState.isGameOver) {
+                gameState.initGame();
+                setIsAutoPlaying(true);
+              } else {
+                setIsAutoPlaying(!isAutoPlaying);
+              }
+            }}
+            className={`flex-1 font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 ${
+              isAutoPlaying
+                ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700'
+                : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+            } text-white`}
+          >
+            {isAutoPlaying ? (
+              <>
+                <Pause size={18} />
+                暂停
+              </>
+            ) : (
+              <>
+                <Play size={18} />
+                AI 自动
+              </>
+            )}
           </Button>
         </div>
 
